@@ -4,17 +4,20 @@ export const ScissorsAnimation: React.FC<{ className?: string }> = ({ className 
   return (
     <div className={`w-16 h-16 ${className}`}>
       <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-morocco-gold drop-shadow-lg">
+        {/* Upper Handle & Blade - Drawn "Open" */}
         <path 
           className="scissor-upper" 
-          d="M30 40 C 20 40, 10 50, 10 60 C 10 70, 20 80, 30 80 C 35 80, 40 75, 42 70 L 80 30 L 90 20" 
-          stroke="currentColor" strokeWidth="6" strokeLinecap="round" 
+          d="M30 40 C 20 40, 10 50, 10 60 C 10 70, 20 80, 30 80 C 35 80, 40 75, 42 70 L 85 25 L 90 20" 
+          stroke="currentColor" strokeWidth="5" strokeLinecap="round" 
         />
+        {/* Lower Handle & Blade - Drawn "Open" */}
         <path 
           className="scissor-lower" 
-          d="M30 60 C 20 60, 10 50, 10 40 C 10 30, 20 20, 30 20 C 35 20, 40 25, 42 30 L 80 70 L 90 80" 
-          stroke="currentColor" strokeWidth="6" strokeLinecap="round" 
+          d="M30 60 C 20 60, 10 50, 10 40 C 10 30, 20 20, 30 20 C 35 20, 40 25, 42 30 L 85 75 L 90 80" 
+          stroke="currentColor" strokeWidth="5" strokeLinecap="round" 
         />
-        <circle cx="45" cy="50" r="4" fill="#121212" />
+        {/* Pivot Screw */}
+        <circle cx="45" cy="50" r="3" fill="#121212" stroke="currentColor" strokeWidth="2" />
       </svg>
     </div>
   );

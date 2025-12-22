@@ -60,22 +60,26 @@
         backdrop-filter: blur(10px);
       }
 
-      /* Scissors Animation */
+      /* Scissors Animation - Corrected Pivot */
       .scissor-upper {
-        transform-origin: 50% 50%;
-        animation: snip-upper 2s infinite ease-in-out;
+        transform-origin: 45px 50px; /* Aligns with the screw circle at cx=45 cy=50 */
+        animation: snip-upper 0.6s infinite ease-in-out;
       }
       .scissor-lower {
-        transform-origin: 50% 50%;
-        animation: snip-lower 2s infinite ease-in-out;
+        transform-origin: 45px 50px; /* Aligns with the screw circle at cx=45 cy=50 */
+        animation: snip-lower 0.6s infinite ease-in-out;
       }
+      
+      /* Snip Action: Start open, close rapidly, open slowly */
       @keyframes snip-upper {
-        0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(-15deg); }
+        0% { transform: rotate(0deg); }      /* Open */
+        40% { transform: rotate(15deg); }    /* Closed (rotate down) */
+        100% { transform: rotate(0deg); }    /* Open */
       }
       @keyframes snip-lower {
-        0%, 100% { transform: rotate(0deg); }
-        50% { transform: rotate(15deg); }
+        0% { transform: rotate(0deg); }      /* Open */
+        40% { transform: rotate(-15deg); }   /* Closed (rotate up) */
+        100% { transform: rotate(0deg); }    /* Open */
       }
 
       /* Tea Animation */
@@ -132,5 +136,6 @@
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
