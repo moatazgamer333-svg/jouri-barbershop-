@@ -4,15 +4,12 @@ let ai: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const getApiKey = () => {
-  // 1. Check process.env (Vercel/Build time)
+  // 1. Check process.env (Vercel/Build time or injected via index.html)
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
     return process.env.API_KEY;
   }
-  // 2. Check LocalStorage (Runtime manual entry)
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('gemini_api_key') || '';
-  }
-  return '';
+  // 2. Fallback hardcoded key as requested for auto-login
+  return 'AIzaSyCS26MJIMoPhb0Oic-3nvE7hL-6wlybuRQ';
 };
 
 const getAI = () => {
@@ -33,7 +30,7 @@ export const getChatResponse = async (userMessage: string): Promise<string> => {
   const currentAI = getAI();
   
   if (!currentAI) {
-    return "The spirits are silent (API Key missing). Please ask the Receptionist to connect, or ensure your API Key is set.";
+    return "The spirits are silent (API Key missing). Please check the connection.";
   }
 
   try {
