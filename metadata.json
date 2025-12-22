@@ -1,0 +1,7 @@
+{
+  "name": "Jouri Barbershop",
+  "description": "Jouri Barbershop - The premier aesthetic Moroccan grooming experience.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
