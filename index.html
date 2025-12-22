@@ -9,6 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <script>
+      // Polyfill process.env for browser environments to prevent crashes
+      window.process = window.process || { env: { API_KEY: '' } };
+    </script>
+    <script>
       tailwind.config = {
         theme: {
           extend: {

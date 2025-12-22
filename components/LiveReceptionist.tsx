@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Button } from './ui';
+import { getApiKey } from '../services/geminiService';
 
 interface LiveReceptionistProps {
   onClose: () => void;
@@ -9,6 +10,7 @@ interface LiveReceptionistProps {
 export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) => {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking' | 'error' | 'needs-key'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [manualKey, setManualKey] = useState('');
   
   // Audio Refs
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -29,28 +31,31 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
   }, []);
 
   const checkKeyAndConnect = async () => {
-    const apiKey = process.env.API_KEY;
+    const apiKey = getApiKey();
     
-    // If no key is present in env, and we are in an environment that supports dynamic selection
-    if (!apiKey && window.aistudio) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-            setStatus('needs-key');
-            return;
-        }
+    // If no key found, prompt user
+    if (!apiKey) {
+        setStatus('needs-key');
+        return;
     }
     
-    // Otherwise try to connect (if env key exists or we assume it's injected)
-    connect();
+    // Otherwise connect
+    connect(apiKey);
+  };
+
+  const handleManualKeySubmit = () => {
+      if (!manualKey.trim()) return;
+      localStorage.setItem('gemini_api_key', manualKey.trim());
+      setStatus('connecting');
+      connect(manualKey.trim());
   };
 
   const handleSelectKey = async () => {
       if (window.aistudio) {
           try {
             await window.aistudio.openSelectKey();
-            // Proceed immediately to connect as per guidelines
             setStatus('connecting');
-            connect();
+            connect(getApiKey());
           } catch (e) {
             console.error(e);
             setStatus('needs-key');
@@ -71,20 +76,16 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
     outputAudioContextRef.current?.close();
   };
 
-  const connect = async () => {
+  const connect = async (keyOverride?: string) => {
     setStatus('connecting');
     try {
-      const apiKey = process.env.API_KEY || '';
-      // Double check if key is really missing to show friendly UI
+      const apiKey = keyOverride || getApiKey();
+      
       if (!apiKey) {
-           if (window.aistudio) {
-               setStatus('needs-key');
-               return;
-           }
-           throw new Error("API Key missing. Please set process.env.API_KEY");
+           setStatus('needs-key');
+           return;
       }
 
-      // Create new instance to ensure we get the latest key if it was just selected
       const ai = new GoogleGenAI({ apiKey });
       
       // Setup Audio
@@ -171,13 +172,8 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
           },
           onerror: (e: any) => {
               console.error("Session Error", e);
-              // Check if error might be related to permissions or key
               if (e.message?.includes('403') || e.message?.includes('key')) {
-                   if (window.aistudio) setStatus('needs-key');
-                   else {
-                       setErrorMsg("Invalid API Key");
-                       setStatus('error');
-                   }
+                 setStatus('needs-key');
               } else {
                   setErrorMsg("Connection interrupted.");
                   setStatus('error');
@@ -201,7 +197,7 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
 
     } catch (e: any) {
         console.error(e);
-        if (e.message?.includes("API Key missing") && window.aistudio) {
+        if (e.message?.includes("API Key") || e.message?.includes("403")) {
             setStatus('needs-key');
         } else {
             setStatus('error');
@@ -284,18 +280,35 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
         </div>
 
         <h2 className="text-2xl font-serif text-white mb-2">Receptionist Aisha</h2>
-        <p className="text-gray-400 text-sm mb-8 text-center min-h-[20px]">
+        <p className="text-gray-400 text-sm mb-6 text-center min-h-[20px]">
            {status === 'connecting' && "Connecting to studio..."}
            {status === 'listening' && "Listening... (Go ahead, speak)"}
            {status === 'speaking' && "Speaking..."}
-           {status === 'needs-key' && "Gemini API Key Required"}
+           {status === 'needs-key' && "Please provide Access Key"}
            {status === 'error' && errorMsg}
         </p>
 
         {status === 'needs-key' ? (
-           <Button onClick={handleSelectKey} className="w-full bg-morocco-gold text-morocco-dark hover:bg-white border-none">
-              Link Google API Key
-           </Button>
+           <div className="w-full space-y-3">
+             {window.aistudio && (
+                <Button onClick={handleSelectKey} className="w-full bg-morocco-gold text-morocco-dark hover:bg-white border-none">
+                    Link Google API Key
+                </Button>
+             )}
+             <div className="flex flex-col gap-2">
+                 <input 
+                    type="password" 
+                    placeholder="Or paste API Key here..." 
+                    className="w-full bg-gray-800 border border-morocco-gold/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-morocco-gold text-sm"
+                    value={manualKey}
+                    onChange={(e) => setManualKey(e.target.value)}
+                 />
+                 <Button onClick={handleManualKeySubmit} disabled={!manualKey} className="w-full text-sm">
+                    Connect
+                 </Button>
+             </div>
+             <p className="text-xs text-gray-500 text-center">Get a free key at aistudio.google.com</p>
+           </div>
         ) : (
            <Button onClick={onClose} variant="outline" className="border-gray-600 text-gray-300 hover:border-white hover:text-white w-full">
               End Call

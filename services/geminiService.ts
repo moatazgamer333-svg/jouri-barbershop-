@@ -1,19 +1,44 @@
 import { GoogleGenAI, Chat } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
-// Helper to keep track of chat instances if needed, though for this simple app we might just re-create or pass the history.
+let ai: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
+export const getApiKey = () => {
+  // 1. Check process.env (Vercel/Build time)
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  // 2. Check LocalStorage (Runtime manual entry)
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('gemini_api_key') || '';
+  }
+  return '';
+};
+
+const getAI = () => {
+    // Always check for a fresh key in case the user just updated it in settings
+    const key = getApiKey();
+    
+    if (!ai && key) {
+        ai = new GoogleGenAI({ apiKey: key });
+    } else if (ai && key && (ai as any).apiKey !== key) {
+        // If key changed (e.g. user updated it manually), re-init
+        ai = new GoogleGenAI({ apiKey: key });
+        chatSession = null; // Reset chat session on key change
+    }
+    return ai;
+}
+
 export const getChatResponse = async (userMessage: string): Promise<string> => {
-  if (!apiKey) {
-    return "The spirits are silent (API Key missing). Please check connection.";
+  const currentAI = getAI();
+  
+  if (!currentAI) {
+    return "The spirits are silent (API Key missing). Please ask the Receptionist to connect, or ensure your API Key is set.";
   }
 
   try {
     if (!chatSession) {
-      chatSession = ai.chats.create({
+      chatSession = currentAI.chats.create({
         model: "gemini-3-flash-preview",
         config: {
           systemInstruction: `
@@ -45,7 +70,6 @@ export const getChatResponse = async (userMessage: string): Promise<string> => {
   }
 };
 
-// Keeping the old function signature for backward compatibility if needed, but wrapping the chat
 export const getStyleRecommendation = async (description: string): Promise<string> => {
   return getChatResponse(`Recommend a style for someone who looks like this: ${description}`);
 };
