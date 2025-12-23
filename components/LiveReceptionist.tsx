@@ -8,9 +8,8 @@ interface LiveReceptionistProps {
 }
 
 export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) => {
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking' | 'error' | 'needs-key'>('idle');
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [manualKey, setManualKey] = useState('');
   
   // Audio Refs
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -24,44 +23,11 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
 
   useEffect(() => {
-    checkKeyAndConnect();
+    connect();
     return () => {
       disconnect();
     };
   }, []);
-
-  const checkKeyAndConnect = async () => {
-    const apiKey = getApiKey();
-    
-    // If no key found, prompt user
-    if (!apiKey) {
-        setStatus('needs-key');
-        return;
-    }
-    
-    // Otherwise connect
-    connect(apiKey);
-  };
-
-  const handleManualKeySubmit = () => {
-      if (!manualKey.trim()) return;
-      localStorage.setItem('gemini_api_key', manualKey.trim());
-      setStatus('connecting');
-      connect(manualKey.trim());
-  };
-
-  const handleSelectKey = async () => {
-      if (window.aistudio) {
-          try {
-            await window.aistudio.openSelectKey();
-            setStatus('connecting');
-            connect(getApiKey());
-          } catch (e) {
-            console.error(e);
-            setStatus('needs-key');
-          }
-      }
-  };
 
   const disconnect = () => {
     inputSourceRef.current?.disconnect();
@@ -76,16 +42,12 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
     outputAudioContextRef.current?.close();
   };
 
-  const connect = async (keyOverride?: string) => {
+  const connect = async () => {
     setStatus('connecting');
+    setErrorMsg('');
+    
     try {
-      const apiKey = keyOverride || getApiKey();
-      
-      if (!apiKey) {
-           setStatus('needs-key');
-           return;
-      }
-
+      const apiKey = getApiKey();
       const ai = new GoogleGenAI({ apiKey });
       
       // Setup Audio
@@ -168,15 +130,16 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
           },
           onclose: () => {
              console.log("Session Closed");
-             setStatus('idle');
+             if (status !== 'error') setStatus('idle');
           },
           onerror: (e: any) => {
               console.error("Session Error", e);
-              if (e.message?.includes('403') || e.message?.includes('key')) {
-                 setStatus('needs-key');
+              // Do NOT ask for key, just show generic error
+              setStatus('error');
+              if (e.message?.includes('403') || e.message?.includes('429')) {
+                  setErrorMsg("Reception is currently very busy.");
               } else {
-                  setErrorMsg("Connection interrupted.");
-                  setStatus('error');
+                  setErrorMsg("Connection unavailable.");
               }
           }
         },
@@ -197,12 +160,8 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
 
     } catch (e: any) {
         console.error(e);
-        if (e.message?.includes("API Key") || e.message?.includes("403")) {
-            setStatus('needs-key');
-        } else {
-            setStatus('error');
-            setErrorMsg(e.message || "Failed to connect.");
-        }
+        setStatus('error');
+        setErrorMsg("Unable to reach the studio.");
     }
   };
 
@@ -274,8 +233,8 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
            {status === 'connecting' && (
              <svg className="animate-spin h-8 w-8 text-morocco-gold" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
            )}
-           {status === 'needs-key' && (
-             <svg className="w-10 h-10 text-morocco-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11.536 19.464a1.998 1.998 0 01-1.414.586H8.464a2 2 0 01-1.414-.586l-.828-.828a2 2 0 010-2.828l.828-.828a2 2 0 011.414 0L10 13.414l.056-.056A6.978 6.978 0 1115 7z"></path></svg>
+           {status === 'error' && (
+             <svg className="w-10 h-10 text-morocco-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
            )}
         </div>
 
@@ -284,31 +243,14 @@ export const LiveReceptionist: React.FC<LiveReceptionistProps> = ({ onClose }) =
            {status === 'connecting' && "Connecting to studio..."}
            {status === 'listening' && "Listening... (Go ahead, speak)"}
            {status === 'speaking' && "Speaking..."}
-           {status === 'needs-key' && "Please provide Access Key"}
            {status === 'error' && errorMsg}
+           {status === 'idle' && "Call Ended"}
         </p>
 
-        {status === 'needs-key' ? (
-           <div className="w-full space-y-3">
-             {window.aistudio && (
-                <Button onClick={handleSelectKey} className="w-full bg-morocco-gold text-morocco-dark hover:bg-white border-none">
-                    Link Google API Key
-                </Button>
-             )}
-             <div className="flex flex-col gap-2">
-                 <input 
-                    type="password" 
-                    placeholder="Or paste API Key here..." 
-                    className="w-full bg-gray-800 border border-morocco-gold/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-morocco-gold text-sm"
-                    value={manualKey}
-                    onChange={(e) => setManualKey(e.target.value)}
-                 />
-                 <Button onClick={handleManualKeySubmit} disabled={!manualKey} className="w-full text-sm">
-                    Connect
-                 </Button>
-             </div>
-             <p className="text-xs text-gray-500 text-center">Get a free key at aistudio.google.com</p>
-           </div>
+        {status === 'error' ? (
+           <Button onClick={connect} className="w-full bg-white text-morocco-dark hover:bg-gray-200 border-none">
+              Retry Connection
+           </Button>
         ) : (
            <Button onClick={onClose} variant="outline" className="border-gray-600 text-gray-300 hover:border-white hover:text-white w-full">
               End Call

@@ -4,25 +4,29 @@ let ai: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const getApiKey = () => {
-  // 1. Check process.env (Vercel/Build time or injected via index.html)
+  // Hardcoded key as the primary source of truth for this deployment
+  const key = 'AIzaSyCS26MJIMoPhb0Oic-3nvE7hL-6wlybuRQ';
+  
+  // Optional: Check environment variables if available (e.g. valid Node environment)
   if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
     return process.env.API_KEY;
   }
-  // 2. Fallback hardcoded key as requested for auto-login
-  return 'AIzaSyCS26MJIMoPhb0Oic-3nvE7hL-6wlybuRQ';
+  
+  // Optional: Check window polyfill
+  if (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY) {
+      return (window as any).process.env.API_KEY;
+  }
+
+  return key;
 };
 
 const getAI = () => {
-    // Always check for a fresh key in case the user just updated it in settings
     const key = getApiKey();
     
-    if (!ai && key) {
+    // Initialize AI if not already initialized
+    if (!ai) {
         ai = new GoogleGenAI({ apiKey: key });
-    } else if (ai && key && (ai as any).apiKey !== key) {
-        // If key changed (e.g. user updated it manually), re-init
-        ai = new GoogleGenAI({ apiKey: key });
-        chatSession = null; // Reset chat session on key change
-    }
+    } 
     return ai;
 }
 
@@ -30,7 +34,7 @@ export const getChatResponse = async (userMessage: string): Promise<string> => {
   const currentAI = getAI();
   
   if (!currentAI) {
-    return "The spirits are silent (API Key missing). Please check the connection.";
+    return "Service temporarily unavailable. Please try again later.";
   }
 
   try {
@@ -63,7 +67,9 @@ export const getChatResponse = async (userMessage: string): Promise<string> => {
     return result.text || "I am listening...";
   } catch (error) {
     console.error("Gemini Chat Error:", error);
-    return "I am having trouble connecting to the network right now. Please ask again in a moment.";
+    // Reset session on error to prevent stuck states
+    chatSession = null;
+    return "I am having a moment of silence. Please ask me again.";
   }
 };
 
